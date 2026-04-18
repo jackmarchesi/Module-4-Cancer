@@ -143,7 +143,7 @@ LUAD_merged[['EGFR', 'JAK1', 'JAK2']].plot.box()
 plt.title("EGFR, JAK1, and JAK2 Expression in LUAD Samples")
 plt.show()
 
-#UMAP
+#UMAP considering both hallmarks
 # %%
 # Load gene list from hallmarks file
 ####################################################
@@ -238,3 +238,59 @@ plt.savefig('umap_luad.png', dpi=150, bbox_inches='tight')
 plt.show()
 
 
+# UMAP Seperating Hallmarks
+# %%
+# UMAP — Immune Evasion Genes Only
+# Filter down to only the immune evasion genes that were found in the dataset
+immune_found = [g for g in immune_list if g in gene_list_found]
+X_immune = LUAD_merged[immune_found].values
+# Fill missing values and standardize just like before
+X_immune = SimpleImputer(strategy='mean').fit_transform(X_immune)
+X_immune_scaled = StandardScaler().fit_transform(X_immune)
+
+# Run UMAP using only immune evasion genes to see if they alone can separate tumor stages
+reducer_immune = umap.UMAP(n_neighbors=15, min_dist=0.1, random_state=42)
+X_umap_immune  = reducer_immune.fit_transform(X_immune_scaled)
+
+plt.figure(figsize=(8, 6))
+# Each dot is a patient, colored by their tumor stage
+plt.scatter(X_umap_immune[:, 0], X_umap_immune[:, 1],
+            c=[list(palette.values())[stage_order.index(s)] for s in stage_labels],
+            s=60, alpha=0.8)
+legend_elements = [Patch(facecolor=palette[s], label=s) for s in stage_order]
+plt.legend(handles=legend_elements, title='Tumor Stage',
+           bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.xlabel("UMAP Dimension 1")
+plt.ylabel("UMAP Dimension 2")
+plt.title("UMAP Projection of LUAD Samples\n(Immune Evasion Genes Only)")
+plt.tight_layout()
+plt.savefig('umap_immune.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+# %%
+# UMAP — Angiogenesis Genes Only
+# Filter down to only the angiogenesis genes that were found in the dataset
+angio_found = [g for g in angio_list if g in gene_list_found]
+X_angio = LUAD_merged[angio_found].values
+# Fill missing values and standardize just like before
+X_angio = SimpleImputer(strategy='mean').fit_transform(X_angio)
+X_angio_scaled = StandardScaler().fit_transform(X_angio)
+
+# Run UMAP using only angiogenesis genes to see if they alone can separate tumor stages
+reducer_angio = umap.UMAP(n_neighbors=15, min_dist=0.1, random_state=42)
+X_umap_angio  = reducer_angio.fit_transform(X_angio_scaled)
+
+plt.figure(figsize=(8, 6))
+# Each dot is a patient, colored by their tumor stage
+plt.scatter(X_umap_angio[:, 0], X_umap_angio[:, 1],
+            c=[list(palette.values())[stage_order.index(s)] for s in stage_labels],
+            s=60, alpha=0.8)
+legend_elements = [Patch(facecolor=palette[s], label=s) for s in stage_order]
+plt.legend(handles=legend_elements, title='Tumor Stage',
+           bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.xlabel("UMAP Dimension 1")
+plt.ylabel("UMAP Dimension 2")
+plt.title("UMAP Projection of LUAD Samples\n(Angiogenesis Genes Only)")
+plt.tight_layout()
+plt.savefig('umap_angio.png', dpi=150, bbox_inches='tight')
+plt.show()
