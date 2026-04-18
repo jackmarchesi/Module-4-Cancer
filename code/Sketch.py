@@ -148,13 +148,15 @@ plt.show()
 # Load gene list from hallmarks file
 ####################################################
 gene_list = pd.read_csv(
-    r'C:\Users\Jmarc\Desktop\Comp BME\Module-4-Cancer\Menyhart_JPA_CancerHallmarks_core.txt',
+    #r'C:\Users\Jmarc\Desktop\Comp BME\Module-4-Cancer\Menyhart_JPA_CancerHallmarks_core.txt',
+    #sep='\t', header=None, index_col=0)
+    'C:\\Users\\yqr8pz\\Documents\\BME 2315\\Module-4-Cancer\\Menyhart_JPA_CancerHallmarks_core.txt',
     sep='\t', header=None, index_col=0)
 print(gene_list)
 
 # Pull the immune evasion and angiogenesis gene sets from the hallmarks file by their category name
 immune_list = list(gene_list.loc['EVADING IMMUNE DESTRUCTION'])
-angio_list  = list(gene_list.loc['INDUCING ANGIOGENESIS'])
+angio_list  = list(gene_list.loc['SUSTAINED ANGIOGENESIS'])
 
 # Some rows have empty cells due to uneven gene counts — remove those NaN values
 immune_list = [g for g in immune_list if pd.notna(g)]
