@@ -4,6 +4,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -14,6 +15,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 import umap.umap_ as umap
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.metrics import balanced_accuracy_score, classification_report, ConfusionMatrixDisplay, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+
 
 
 # %%
@@ -296,3 +301,251 @@ plt.title("UMAP Projection of LUAD Samples\n(Angiogenesis Genes Only)")
 plt.tight_layout()
 plt.savefig('umap_angio.png', dpi=150, bbox_inches='tight')
 plt.show()
+
+#PCA
+pca = PCA(n_components=2, random_state=42)
+X_pca = pca.fit_transform(X_scaled)
+
+# Print variance explained by each component
+print(f"PC1 variance explained: {pca.explained_variance_ratio_[0]:.3f}") # This tells us how much of the original data's variability is captured by the first and second principal component, which is the most important one
+print(f"PC2 variance explained: {pca.explained_variance_ratio_[1]:.3f}") 
+print(f"Total variance explained: {sum(pca.explained_variance_ratio_):.3f}")
+
+plt.figure(figsize=(8, 6))
+plt.scatter(X_pca[:, 0], X_pca[:, 1],
+            c=[list(palette.values())[stage_order.index(s)] for s in stage_labels],
+            s=60, alpha=0.8)
+
+from matplotlib.patches import Patch
+legend_elements = [Patch(facecolor=palette[s], label=s) for s in stage_order]
+plt.legend(handles=legend_elements, title='Tumor Stage',
+           bbox_to_anchor=(1.05, 1), loc='upper left')
+
+plt.xlabel(f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}% variance)") # Label the axes with the percentage of variance explained by each principal component
+plt.ylabel(f"PC2 ({pca.explained_variance_ratio_[1]*100:.1f}% variance)") # This helps us understand how much of the original data's variability is captured in this 2D plot
+plt.title("PCA Projection of LUAD Samples\n(Immune Evasion + Angiogenesis Genes)") 
+plt.tight_layout()
+plt.savefig('pca_luad.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+immune_found = [g for g in immune_list if g in gene_list_found] # Filter down to only the immune evasion genes that were found in the dataset
+X_immune = LUAD_merged[immune_found].values
+X_immune = SimpleImputer(strategy='mean').fit_transform(X_immune) # Fill in any missing expression values with the average for that gene
+X_immune_scaled = StandardScaler().fit_transform(X_immune) # Standardize the data so all genes are on the same scale and no single gene dominates the PCA
+
+# Limit components to what's feasible given the number of genes
+n_components_immune = min(2, len(immune_found))
+pca_immune = PCA(n_components=n_components_immune, random_state=42)
+X_pca_immune = pca_immune.fit_transform(X_immune_scaled)
+
+print(f"Immune PCA — PC1 variance explained: {pca_immune.explained_variance_ratio_[0]:.3f}") # This tells us how much of the original data's variability is captured by the first and second principal component, which is the most important one
+print(f"Immune PCA — PC2 variance explained: {pca_immune.explained_variance_ratio_[1]:.3f}") # Note that if we have fewer than 2 immune genes, then PC2 won't exist and the variance explained will be 0
+
+plt.figure(figsize=(8, 6))
+plt.scatter(X_pca_immune[:, 0], X_pca_immune[:, 1],
+            c=[list(palette.values())[stage_order.index(s)] for s in stage_labels],
+            s=60, alpha=0.8)
+legend_elements = [Patch(facecolor=palette[s], label=s) for s in stage_order]
+plt.legend(handles=legend_elements, title='Tumor Stage',
+           bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.xlabel(f"PC1 ({pca_immune.explained_variance_ratio_[0]*100:.1f}% variance)") # Label the axes with the percentage of variance explained by each principal component
+plt.ylabel(f"PC2 ({pca_immune.explained_variance_ratio_[1]*100:.1f}% variance)") # This helps us understand how much of the original data's variability is captured in this 2D plot
+plt.title("PCA Projection of LUAD Samples\n(Immune Evasion Genes Only)")
+plt.tight_layout()
+plt.savefig('pca_immune.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+angio_found = [g for g in angio_list if g in gene_list_found] # Filter down to only the angiogenesis genes that were found in the dataset
+X_angio = LUAD_merged[angio_found].values
+X_angio = SimpleImputer(strategy='mean').fit_transform(X_angio)
+X_angio_scaled = StandardScaler().fit_transform(X_angio)
+
+n_components_angio = min(2, len(angio_found)) # Limit components to what's feasible given the number of genes
+pca_angio = PCA(n_components=n_components_angio, random_state=42)
+X_pca_angio = pca_angio.fit_transform(X_angio_scaled)
+
+print(f"Angio PCA — PC1 variance explained: {pca_angio.explained_variance_ratio_[0]:.3f}") # This tells us how much of the original data's variability is captured by the first and second principal component, which is the most important one
+print(f"Angio PCA — PC2 variance explained: {pca_angio.explained_variance_ratio_[1]:.3f}") # Note that if we have fewer than 2 angiogenesis genes, then PC2 won't exist and the variance explained will be 0
+
+plt.figure(figsize=(8, 6)) # Each dot is a patient, colored by their tumor stage
+plt.scatter(X_pca_angio[:, 0], X_pca_angio[:, 1],
+            c=[list(palette.values())[stage_order.index(s)] for s in stage_labels],
+            s=60, alpha=0.8)
+legend_elements = [Patch(facecolor=palette[s], label=s) for s in stage_order]
+plt.legend(handles=legend_elements, title='Tumor Stage',
+           bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.xlabel(f"PC1 ({pca_angio.explained_variance_ratio_[0]*100:.1f}% variance)")
+plt.ylabel(f"PC2 ({pca_angio.explained_variance_ratio_[1]*100:.1f}% variance)")
+plt.title("PCA Projection of LUAD Samples\n(Angiogenesis Genes Only)")
+plt.tight_layout()
+plt.savefig('pca_angio.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+
+
+
+
+
+
+# %%
+# MACHINE LEARNING: Logistic Regression
+# Predicting tumor stage from immune evasion + angiogenesis gene expression
+# Picks up directly after the PCA section — X_scaled and stage_labels already defined
+####################################################
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import balanced_accuracy_score, classification_report, ConfusionMatrixDisplay, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+
+# Encode stage labels to integers (Stage I=0, II=1, III=2, IV=3)
+le = LabelEncoder()
+y = le.fit_transform(stage_labels)
+
+# Split into training (80%) and validation (20%) — DO NOT use test set
+X_train, X_val, y_train, y_val = train_test_split(
+    X_scaled, y, test_size=0.20, random_state=42, stratify=y)
+
+# %%
+# BUILD THE MODEL (same pattern as class template)
+model = LogisticRegression(penalty=None, solver='lbfgs', max_iter=1000,
+                            class_weight='balanced', random_state=42).fit(X_train, y_train)
+
+# %%
+# EVALUATE — in-sample (training) vs out-of-sample (validation)
+train_score = balanced_accuracy_score(y_train, model.predict(X_train))
+val_score   = balanced_accuracy_score(y_val,   model.predict(X_val))
+
+print(f"Training Balanced Accuracy:   {train_score:.3f}")
+print(f"Validation Balanced Accuracy: {val_score:.3f}")
+print(f"\nGap (train - val): {train_score - val_score:.3f}")
+print("\nValidation Classification Report:")
+print(classification_report(y_val, model.predict(X_val), target_names=le.classes_))
+
+# %%
+# CONFUSION MATRIX — validation set
+cm = confusion_matrix(y_val, model.predict(X_val))
+ConfusionMatrixDisplay(cm, display_labels=le.classes_).plot(cmap='Blues')
+plt.title("Confusion Matrix — Validation Set\n(Logistic Regression, Immune + Angiogenesis Genes)")
+plt.tight_layout()
+plt.savefig('confusion_matrix_val.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+
+def simplify_to_binary(stage):
+    if stage in ['Stage I', 'Stage II']:
+        return 0  # Early
+    else:
+        return 1  # Late
+
+y_binary = np.array([simplify_to_binary(s) for s in stage_labels])
+binary_names = ['Early (I+II)', 'Late (III+IV)']
+
+print("Early stage samples:", np.sum(y_binary == 0))
+print("Late stage samples: ", np.sum(y_binary == 1))
+
+# Split into training (80%) and validation (20%)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_scaled, y_binary, test_size=0.20, random_state=42, stratify=y_binary)
+
+# %%
+# builds the model
+model = LogisticRegression(penalty=None, solver='lbfgs', max_iter=1000,
+                            class_weight='balanced', random_state=42).fit(X_train, y_train)
+
+# %%
+# EVALUATE — in-sample (training) vs out-of-sample (validation)
+train_score = balanced_accuracy_score(y_train, model.predict(X_train))
+val_score   = balanced_accuracy_score(y_val,   model.predict(X_val))
+
+print(f"Training Balanced Accuracy:   {train_score:.3f}")
+print(f"Validation Balanced Accuracy: {val_score:.3f}")
+print(f"\nGap (train - val): {train_score - val_score:.3f}")
+print("\nValidation Classification Report:")
+print(classification_report(y_val, model.predict(X_val), target_names=binary_names))
+
+# %%
+# CONFUSION MATRIX — validation set
+cm = confusion_matrix(y_val, model.predict(X_val))
+ConfusionMatrixDisplay(cm, display_labels=binary_names).plot(cmap='Blues')
+plt.title("Confusion Matrix — Validation Set\n(Logistic Regression, Early vs Late Stage)")
+plt.tight_layout()
+plt.savefig('confusion_matrix_binary.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+def simplify_to_binary(stage):
+    if stage in ['Stage I', 'Stage II']:
+        return 0  # Early
+    else:
+        return 1  # Late
+
+y_binary = np.array([simplify_to_binary(s) for s in stage_labels])
+binary_names = ['Early (I+II)', 'Late (III+IV)']
+
+# Separate gene feature matrices for each hallmark
+X_immune = LUAD_merged[immune_found].values
+X_immune = SimpleImputer(strategy='mean').fit_transform(X_immune)
+X_immune_scaled = StandardScaler().fit_transform(X_immune)
+
+X_angio = LUAD_merged[angio_found].values
+X_angio = SimpleImputer(strategy='mean').fit_transform(X_angio)
+X_angio_scaled = StandardScaler().fit_transform(X_angio)
+
+# %%
+# IMMUNE RESISTANCE MODEL
+X_train_i, X_val_i, y_train_i, y_val_i = train_test_split(
+    X_immune_scaled, y_binary, test_size=0.20, random_state=42, stratify=y_binary)
+
+model_immune = LogisticRegression(penalty=None, solver='lbfgs', max_iter=1000,
+                                   class_weight='balanced', random_state=42).fit(X_train_i, y_train_i)
+
+train_score_i = balanced_accuracy_score(y_train_i, model_immune.predict(X_train_i))
+val_score_i   = balanced_accuracy_score(y_val_i,   model_immune.predict(X_val_i))
+
+print("=" * 50)
+print("IMMUNE RESISTANCE")
+print("=" * 50)
+print(f"Training Balanced Accuracy:   {train_score_i:.3f}")
+print(f"Validation Balanced Accuracy: {val_score_i:.3f}")
+print(f"Gap (train - val):            {train_score_i - val_score_i:.3f}")
+print(classification_report(y_val_i, model_immune.predict(X_val_i), target_names=binary_names))
+
+cm_i = confusion_matrix(y_val_i, model_immune.predict(X_val_i))
+ConfusionMatrixDisplay(cm_i, display_labels=binary_names).plot(cmap='Blues')
+plt.title("Confusion Matrix — Immune Resistance\n(Early vs Late Stage)")
+plt.tight_layout()
+plt.savefig('confusion_matrix_immune.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+# %%
+# ANGIOGENESIS MODEL
+X_train_a, X_val_a, y_train_a, y_val_a = train_test_split(
+    X_angio_scaled, y_binary, test_size=0.20, random_state=42, stratify=y_binary)
+
+model_angio = LogisticRegression(penalty=None, solver='lbfgs', max_iter=1000,
+                                  class_weight='balanced', random_state=42).fit(X_train_a, y_train_a)
+
+train_score_a = balanced_accuracy_score(y_train_a, model_angio.predict(X_train_a))
+val_score_a   = balanced_accuracy_score(y_val_a,   model_angio.predict(X_val_a))
+
+print("=" * 50)
+print("ANGIOGENESIS")
+print("=" * 50)
+print(f"Training Balanced Accuracy:   {train_score_a:.3f}")
+print(f"Validation Balanced Accuracy: {val_score_a:.3f}")
+print(f"Gap (train - val):            {train_score_a - val_score_a:.3f}")
+print(classification_report(y_val_a, model_angio.predict(X_val_a), target_names=binary_names))
+
+cm_a = confusion_matrix(y_val_a, model_angio.predict(X_val_a))
+ConfusionMatrixDisplay(cm_a, display_labels=binary_names).plot(cmap='Blues')
+plt.title("Confusion Matrix — Angiogenesis\n(Early vs Late Stage)")
+plt.tight_layout()
+plt.savefig('confusion_matrix_angio.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+# %%
+# SUMMARY COMPARISON
+print("=" * 50)
+print("SUMMARY")
+print("=" * 50)
+print(f"Immune Resistance — Val Balanced Accuracy: {val_score_i:.3f}")
+print(f"Angiogenesis      — Val Balanced Accuracy: {val_score_a:.3f}")
